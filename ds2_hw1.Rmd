@@ -1,0 +1,171 @@
+---
+title: "hw1"
+author: "Amanda Howarth"
+date: "2/26/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(stargazer) 
+library(leaps)
+library(FNN)
+library(ModelMetrics)
+library(caret)
+library(boot)
+library(Rcpp)
+library(microbenchmark)
+library(ISLR)
+library(glmnet)
+library(corrplot)
+library(plotmo)
+```
+
+#should everything be a factor variable (in matrix all variables have to be numeric; removes factor values and turns them into 1 and 0 (e.g. league, division))
+
+```{r}
+test =
+  read_excel(path = "./data/solubility_test.xlsx", sheet = 1) %>% 
+  janitor::clean_names() %>% 
+  na.omit()
+
+train =
+  read_excel(path = "./data/solubility_train.xlsx", sheet = 1) %>% 
+  janitor::clean_names() %>% 
+  na.omit()
+```
+
+#QUSETION 1
+1. (a) Fit a linear model using least squares on the training data and calculate the mean square error using the test data.
+
+#not sure you need [-tRows]
+```{r}
+ctrl1 <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+
+set.seed(2)
+lmfit <- train(solubility~., 
+                data = train, 
+                method = "lm", 
+                trControl = ctrl1)
+lmfit
+
+#test error 
+pred_lm <- predict(lmfit, test)
+mse(test$solubility, pred_lm)
+
+```
+test error (MSE) =0.5558898
+
+#QUSETION 2
+1b. Fit a ridge regression model on the training data, with λ chosen by cross-validation. Report the test error.
+#check the sequence
+```{r}
+x <- model.matrix(solubility~.,train)[,-1]
+y <- train$solubility
+
+ctrl1 <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+
+set.seed(2)
+ridge.fit <- train(x, y,
+                   method = "glmnet",
+                   tuneGrid = expand.grid(alpha = 0, 
+                                          lambda = exp(seq(-1, 10, length=100))), 
+                   preProc = c("center", "scale"),
+                   trControl = ctrl1)
+ridge.fit
+
+plot(ridge.fit, xTrans = function(x) log(x))
+
+#lambda value 
+ridge.fit$bestTune 
+
+#model coefficients 
+coef(ridge.fit$finalModel,ridge.fit$bestTune$lambda) 
+
+#test error 
+pred_ridge <- predict(ridge.fit, test)
+mse(test$solubility, pred_ridge)
+```
+
+"Tuning parameter 'alpha' was held constant at a value of 0
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were alpha = 0 and lambda = 0.3678794."
+
+lambda = 0.3678794
+test error= 0.545737
+
+
+1c. Fit a lasso model on the training data, with λ chosen by cross-validation. Report the test error, along with the number of non-zero coefficient estimates.
+```{r}
+set.seed(2)
+lasso.fit <- train(x, y,
+                   method = "glmnet",
+                   tuneGrid = expand.grid(alpha = 1, 
+                                          lambda = exp(seq(-1, 10, length=100))),
+                   preProc = c("center", "scale"),
+                   trControl = ctrl1)
+lasso.fit
+
+plot(lasso.fit, xTrans = function(x) log(x))
+
+#lamda value 
+lasso.fit$bestTune
+
+#model coefficients 
+coef(lasso.fit$finalModel,lasso.fit$bestTune$lambda)
+
+#test error 
+pred_lasso <- predict(lasso.fit, test)
+mse(test$solubility, pred_lasso)
+```
+lambda = 0.3678794
+test error= 1.328538
+#is getting the same lambda as the ridge.fit weird?
+
+1d. Fit a principle component regression model on the training data, with M chosen by cross-validation. Report the test error, along with the value of M selected by cross-validation.
+```{r}
+
+ctrl1 <-trainControl(method = "repeatedcv", number = 10, repeats = 5)
+
+set.seed(2)
+pcr.fit <-train(x, y,
+                method = "pcr",
+                tuneGrid  =data.frame(ncomp = 1:228), 
+                trControl = ctrl1,
+               preProc =c("center", "scale"))
+pcr.fit 
+
+#M value
+pcr.fit$bestTune
+
+#test error 
+pred_pcr <- predict(pcr.fit, test)
+mse(test$solubility, pred_pcr)
+
+ggplot(pcr.fit, highlight = TRUE) + theme_bw()
+
+```
+M = 157
+MSE = 0.549917
+
+
+1e. Briefly discuss the results obtained in (a)∼(d).
+
+1f. Which model will you choose for predicting solubility?
+```{r, fig.width=5}
+resamp <- resamples(list(lm = lmfit,
+                         ridge = ridge.fit, 
+                         lasso = lasso.fit, 
+                         pcr = pcr.fit))
+
+summary(resamp)
+```
+
+try to get to pdf!!
+
+
