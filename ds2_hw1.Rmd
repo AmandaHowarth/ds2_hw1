@@ -2,7 +2,10 @@
 title: "hw1"
 author: "Amanda Howarth"
 date: "2/26/2020"
-output: html_document
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -26,7 +29,6 @@ library(corrplot)
 library(plotmo)
 ```
 
-#should everything be a factor variable (in matrix all variables have to be numeric; removes factor values and turns them into 1 and 0 (e.g. league, division))
 
 ```{r}
 test =
@@ -40,10 +42,9 @@ train =
   na.omit()
 ```
 
-#QUSETION 1
+#QUSETION 1A
 1. (a) Fit a linear model using least squares on the training data and calculate the mean square error using the test data.
 
-#not sure you need [-tRows]
 ```{r}
 ctrl1 <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
 
@@ -59,11 +60,12 @@ pred_lm <- predict(lmfit, test)
 mse(test$solubility, pred_lm)
 
 ```
-test error (MSE) =0.5558898
 
-#QUSETION 2
+Using the test data, we find that the mean square error (MSE) is 0.5558898. 
+
+
+#QUSETION 1B 
 1b. Fit a ridge regression model on the training data, with λ chosen by cross-validation. Report the test error.
-#check the sequence
 ```{r}
 x <- model.matrix(solubility~.,train)[,-1]
 y <- train$solubility
@@ -74,7 +76,7 @@ set.seed(2)
 ridge.fit <- train(x, y,
                    method = "glmnet",
                    tuneGrid = expand.grid(alpha = 0, 
-                                          lambda = exp(seq(-1, 10, length=100))), 
+                                          lambda = exp(seq(-50, 50, length=100))), 
                    preProc = c("center", "scale"),
                    trControl = ctrl1)
 ridge.fit
@@ -92,21 +94,17 @@ pred_ridge <- predict(ridge.fit, test)
 mse(test$solubility, pred_ridge)
 ```
 
-"Tuning parameter 'alpha' was held constant at a value of 0
-RMSE was used to select the optimal model using the smallest value.
-The final values used for the model were alpha = 0 and lambda = 0.3678794."
-
-lambda = 0.3678794
-test error= 0.545737
+We found the test erorr to be 0.5134603 with a lambda value of 0.0800381. 
 
 
+##Question 1C 
 1c. Fit a lasso model on the training data, with λ chosen by cross-validation. Report the test error, along with the number of non-zero coefficient estimates.
 ```{r}
 set.seed(2)
 lasso.fit <- train(x, y,
                    method = "glmnet",
                    tuneGrid = expand.grid(alpha = 1, 
-                                          lambda = exp(seq(-1, 10, length=100))),
+                                          lambda = exp(seq(-10, 10, length=100))),
                    preProc = c("center", "scale"),
                    trControl = ctrl1)
 lasso.fit
@@ -123,10 +121,11 @@ coef(lasso.fit$finalModel,lasso.fit$bestTune$lambda)
 pred_lasso <- predict(lasso.fit, test)
 mse(test$solubility, pred_lasso)
 ```
-lambda = 0.3678794
-test error= 1.328538
-#is getting the same lambda as the ridge.fit weird?
 
+We found the test erorr to be 0.4981467 with a lambda value of 0.004731394.
+
+
+##Question 1D
 1d. Fit a principle component regression model on the training data, with M chosen by cross-validation. Report the test error, along with the value of M selected by cross-validation.
 ```{r}
 
@@ -150,12 +149,23 @@ mse(test$solubility, pred_pcr)
 ggplot(pcr.fit, highlight = TRUE) + theme_bw()
 
 ```
-M = 157
-MSE = 0.549917
+
+We found the test erorr to be 0.549917 with an M value of 157 selected by cross-validation. 
 
 
+##Question 1E 
 1e. Briefly discuss the results obtained in (a)∼(d).
 
+In Questions A - D, we fit four models using the training data and calculated the mean square error using the test data. Our data set includes 228 predictor variables. Our outcome is solubility (the solubility of a compound). We fit four different models (linear regression, ridge regression, lasso, and PCR) using repeated cross validation to determine which model would fit the data best. We measured the mean squared error (MSE) to quantify the extent to which the predicted reponse value for a given observation is close to the true response value for that observation. In general, the smaller the MSE is, the closer the predicted responses are to the true responses. 
+
+First, we fit a linear model using least squares on all the predictors in the training data. We found that the MSE calculated on the test data was 0.5558898. 
+
+Next, we fit two models on all the predictor variables using two different techniques that "shrink" the coefficient estimates towards zero, which reduces variance. We fit a ridge regression model on the training data. Alpha was held at a value of 0 and our final lambda value chosen by cross-validation was 0.0800381. Using our test data, we found that test error was 0.5134603. Next, we fit a lasso model on the training data. Alpha was held at a value of 1 and our final lambda value chosen by cross-validation was 0.004731394. Our test error was 0.4981467. 
+
+Lastly, we fit a principle component regression (PCR) model on the training data with M chosen by cross validation. The PCR method constructs the first M principal components and then uses the componenets as the predictors in a linear regression model. Our M-value was 157 and our test error was 0.549917.
+
+
+##Question 1F
 1f. Which model will you choose for predicting solubility?
 ```{r, fig.width=5}
 resamp <- resamples(list(lm = lmfit,
@@ -165,7 +175,7 @@ resamp <- resamples(list(lm = lmfit,
 
 summary(resamp)
 ```
+The model I would choose for predicting solubility is lasso because it has the smallest mean RMSE value of 0.6774968. Next, I would choose ridge with an RSME value of 0.6856755, then I would choose PCR with an RMSE value of 0.7087392, and last I would choose the linear model with an RSME value of 0.7093576. 
 
-try to get to pdf!!
 
 
